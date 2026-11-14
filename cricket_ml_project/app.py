@@ -25,7 +25,7 @@ st.set_page_config(
 
 MASTERCLASS_DATA = {
     "cover_drive": {
-        "legend": "Virat Kohli / Babar Azam",
+        "legend": "Virat Kohli / Sanju Samson",
         "legend_title": "The Master of the Cover Drive",
         "avatar": "🏏",
         "swing_type": "Vertical High-Elbow Driving Arc",
