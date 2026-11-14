@@ -500,10 +500,10 @@ def render_cricket_stadium_hero_animation():
         body { background: transparent; font-family: 'Segoe UI', system-ui, sans-serif; overflow: hidden; display: flex; justify-content: center; }
         #stage { position: relative; width: 700px; height: 270px; border-radius: 20px; overflow: hidden; border: 2px solid #2E7D32; box-shadow: 0 14px 40px rgba(0,0,0,0.8), inset 0 0 20px rgba(46,125,50,0.4); background: #0A2612; }
         canvas { display: block; }
-        .match-badge { position: absolute; top: 10px; left: 14px; background: rgba(8, 26, 14, 0.88); border: 1px solid rgba(255, 213, 79, 0.45); border-radius: 20px; padding: 5px 14px; font-family: 'Courier New', monospace; font-size: 11px; font-weight: 700; color: #FFD54F; letter-spacing: 1.5px; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
+        .match-badge { position: absolute; top: 10px; left: 14px; background: rgba(8, 26, 14, 0.88); border: 1px solid rgba(255, 213, 79, 0.45); border-radius: 20px; padding: 5px 14px; font-family: 'Courier New', monospace; font-size: 11px; font-weight: 700; color: #FFD54F; letter-spacing: 1.5px; text-transform: uppercase; display: flex; align-items: center; gap: 6px; z-index: 10; }
         .pulse-dot { width: 7px; height: 7px; background: #FF1744; border-radius: 50%; animation: redBlink 1s infinite; }
         @keyframes redBlink { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.3; transform: scale(0.7); } }
-        .scoreboard-hud { position: absolute; bottom: 10px; left: 14px; right: 14px; background: linear-gradient(90deg, rgba(7, 21, 12, 0.92) 0%, rgba(12, 38, 20, 0.95) 50%, rgba(7, 21, 12, 0.92) 100%); border: 1px solid rgba(76, 175, 80, 0.4); border-radius: 12px; padding: 6px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #E2E8F0; letter-spacing: 1px; }
+        .scoreboard-hud { position: absolute; bottom: 10px; left: 14px; right: 14px; background: linear-gradient(90deg, rgba(7, 21, 12, 0.94) 0%, rgba(12, 38, 20, 0.96) 50%, rgba(7, 21, 12, 0.94) 100%); border: 1px solid rgba(76, 175, 80, 0.45); border-radius: 12px; padding: 6px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #E2E8F0; letter-spacing: 0.8px; z-index: 10; }
         .shot-tag { color: #FFD54F; font-weight: 800; font-family: monospace; font-size: 12px; }
         .runs-pill { background: #D32F2F; color: white; font-weight: 900; padding: 2px 10px; border-radius: 12px; font-size: 11px; }
     </style>
@@ -514,69 +514,339 @@ def render_cricket_stadium_hero_animation():
         <div class="match-badge"><div class="pulse-dot"></div><span>🔴 60 FPS CRICKET STADIUM ACTION</span></div>
         <div class="scoreboard-hud">
             <div>CURRENT STROKE: <span id="hudShot" class="shot-tag">VIRAT KOHLI COVER DRIVE</span></div>
-            <div>SPEED: <span id="hudSpeed" style="color:#10B981; font-weight:700;">143.6 KM/H</span></div>
+            <div>TARGET: <span id="hudField" style="color:#38BDF8; font-weight:700;">EXTRA COVER (OFF SIDE)</span></div>
+            <div>SPEED: <span id="hudSpeed" style="color:#10B981; font-weight:700;">142.4 KM/H</span></div>
             <div id="hudRuns" class="runs-pill">4 RUNS</div>
         </div>
     </div>
     <script>
         const canvas = document.getElementById('matchCanvas');
         const ctx = canvas.getContext('2d');
+
+        // Strictly calibrated for Right-Handed Batsman (RHB) Perspective:
+        // Batsman stands at bottom crease (352, 192) facing UP towards bowler at (350, 48).
+        // LEFT side (X < 352)  = LEG SIDE (Midwicket, Square Leg, Fine Leg, Long-On)
+        // RIGHT side (X > 352) = OFF SIDE (Covers, Point, Third Man, Long-Off)
         const SHOTS = [
-            { name: "VIRAT KOHLI COVER DRIVE", field: "EXTRA COVER", type: "FOUR", runs: "4 RUNS", targetX: 130, targetY: 45, batAngle: -0.7, color: "#10B981" },
-            { name: "ROHIT SHARMA PULL SHOT", field: "DEEP MIDWICKET", type: "SIX", runs: "6 RUNS", targetX: 580, targetY: 55, batAngle: 1.1, color: "#FFD54F" },
-            { name: "SACHIN TENDULKAR STRAIGHT DRIVE", field: "LONG OFF", type: "FOUR", runs: "4 RUNS", targetX: 300, targetY: 28, batAngle: -0.2, color: "#38BDF8" },
-            { name: "BRIAN LARA LATE CUT", field: "DEEP THIRD MAN", type: "FOUR", runs: "4 RUNS", targetX: 95, targetY: 215, batAngle: -1.3, color: "#F43F5E" },
-            { name: "MS DHONI HELICOPTER FLICK", field: "FORWARD SQUARE LEG", type: "SIX", runs: "6 RUNS", targetX: 590, targetY: 175, batAngle: 0.9, color: "#A855F7" }
+            {
+                name: "VIRAT KOHLI COVER DRIVE",
+                field: "EXTRA COVER (OFF SIDE)",
+                type: "FOUR",
+                runs: "4 RUNS",
+                targetX: 575,
+                targetY: 48,
+                speed: "142.4 KM/H",
+                color: "#10B981"
+            },
+            {
+                name: "ROHIT SHARMA PULL SHOT",
+                field: "DEEP MIDWICKET (LEG SIDE)",
+                type: "SIX",
+                runs: "6 RUNS",
+                targetX: 125,
+                targetY: 55,
+                speed: "148.2 KM/H",
+                color: "#FFD54F"
+            },
+            {
+                name: "MS DHONI HELICOPTER SHOT",
+                field: "DEEP MIDWICKET (LEG SIDE)",
+                type: "SIX",
+                runs: "6 RUNS",
+                targetX: 145,
+                targetY: 40,
+                speed: "151.2 KM/H",
+                color: "#A855F7"
+            },
+            {
+                name: "SACHIN TENDULKAR STRAIGHT DRIVE",
+                field: "LONG OFF (DOWN GROUND)",
+                type: "FOUR",
+                runs: "4 RUNS",
+                targetX: 346,
+                targetY: 25,
+                speed: "139.8 KM/H",
+                color: "#38BDF8"
+            },
+            {
+                name: "BRIAN LARA LATE CUT",
+                field: "DEEP THIRD MAN (OFF SIDE)",
+                type: "FOUR",
+                runs: "4 RUNS",
+                targetX: 615,
+                targetY: 220,
+                speed: "136.5 KM/H",
+                color: "#F43F5E"
+            },
+            {
+                name: "SURYAKUMAR YADAV SCOOP",
+                field: "FINE LEG (LEG SIDE)",
+                type: "SIX",
+                runs: "6 RUNS",
+                targetX: 105,
+                targetY: 215,
+                speed: "144.2 KM/H",
+                color: "#FB923C"
+            }
         ];
-        let shotIdx = 0, progress = 0, dustParticles = [], trail = [], fireworks = [];
+
+        let shotIdx = 0, progress = 0, trail = [], impactFlash = 0, fireworks = [];
+
         function drawGround() {
-            for (let i = 0; i < 14; i++) { ctx.fillStyle = (i % 2 === 0) ? '#0D3319' : '#144622'; ctx.fillRect(i * 50, 0, 50, 270); }
-            ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 2.5; ctx.setLineDash([7, 5]); ctx.beginPath(); ctx.ellipse(350, 135, 325, 118, 0, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.ellipse(350, 135, 190, 70, 0, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+            // Outfield stripes
+            for (let i = 0; i < 14; i++) {
+                ctx.fillStyle = (i % 2 === 0) ? '#0D3319' : '#144622';
+                ctx.fillRect(i * 50, 0, 50, 270);
+            }
+
+            // Boundary rope (dashed ellipse)
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 2.5;
+            ctx.setLineDash([7, 5]);
+            ctx.beginPath();
+            ctx.ellipse(350, 135, 325, 118, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 30-yard inner circle
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.ellipse(350, 135, 190, 70, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Pitch turf (22 yards)
             const pGrad = ctx.createLinearGradient(325, 0, 375, 0);
-            pGrad.addColorStop(0, '#7A5B3E'); pGrad.addColorStop(0.5, '#C4A47C'); pGrad.addColorStop(1, '#7A5B3E');
-            ctx.fillStyle = pGrad; ctx.fillRect(325, 25, 50, 195);
-            ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 1.5;
-            ctx.beginPath(); ctx.moveTo(320, 48); ctx.lineTo(380, 48); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(320, 196); ctx.lineTo(380, 196); ctx.stroke();
-            ctx.fillStyle = '#FFD54F'; ctx.fillRect(346, 45, 8, 3); ctx.fillRect(346, 208, 8, 3);
+            pGrad.addColorStop(0, '#7A5B3E');
+            pGrad.addColorStop(0.5, '#C4A47C');
+            pGrad.addColorStop(1, '#7A5B3E');
+            ctx.fillStyle = pGrad;
+            ctx.fillRect(325, 25, 50, 195);
+
+            // Bowling and Batting creases
+            ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(320, 48); ctx.lineTo(380, 48);
+            ctx.moveTo(320, 196); ctx.lineTo(380, 196);
+            ctx.stroke();
+
+            // Stumps at both ends
+            ctx.fillStyle = '#FFD54F';
+            ctx.fillRect(346, 45, 8, 3);
+            ctx.fillRect(346, 208, 8, 3);
+
+            // Field orientation labels (RHB perspective)
+            ctx.font = '700 9px monospace';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+            ctx.textAlign = 'center';
+
+            // Top end (Bowler & Down Ground)
+            ctx.fillText("BOWLER RUN-UP", 350, 16);
+            ctx.fillText("LONG ON", 260, 32);
+            ctx.fillText("LONG OFF", 440, 32);
+
+            // Left side = Leg Side
+            ctx.fillText("LEG SIDE (MIDWICKET)", 140, 48);
+            ctx.fillText("SQUARE LEG", 110, 138);
+            ctx.fillText("FINE LEG", 130, 232);
+
+            // Right side = Off Side
+            ctx.fillText("OFF SIDE (COVERS)", 560, 48);
+            ctx.fillText("POINT", 590, 138);
+            ctx.fillText("THIRD MAN", 570, 232);
+
+            // Bottom end (Behind Batsman)
+            ctx.fillText("WICKETKEEPER", 352, 232);
         }
-        function drawBall(x, y, r) {
-            ctx.save(); ctx.translate(x, y); ctx.fillStyle = '#EF4444'; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+
+        function drawBall(x, y, r, glowColor) {
+            ctx.save();
+            ctx.translate(x, y);
+            if (glowColor) {
+                ctx.shadowColor = glowColor;
+                ctx.shadowBlur = 10;
+            }
+            ctx.fillStyle = '#EF4444';
+            ctx.beginPath();
+            ctx.arc(0, 0, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
         }
+
         function drawBatsman(swingProgress, targetAngle) {
-            ctx.save(); ctx.translate(352, 192); ctx.fillStyle = '#F8FAFC'; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill();
-            ctx.rotate(targetAngle * Math.min(swingProgress * 2, 1.0)); ctx.fillStyle = '#D97706'; ctx.fillRect(2, -2, 16, 3.5); ctx.restore();
+            ctx.save();
+            ctx.translate(352, 192);
+
+            // Batsman body
+            ctx.fillStyle = '#F8FAFC';
+            ctx.beginPath();
+            ctx.arc(0, 0, 6.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Bat stance & swing transition
+            // Cocked backlift stance towards slips (~ +0.85 rad)
+            const stanceAngle = 0.85;
+            let curAngle;
+            if (swingProgress < 0.40) {
+                // Address stance / bat tap
+                curAngle = stanceAngle + Math.sin(swingProgress * Math.PI * 10) * 0.08;
+            } else {
+                // Downswing into target impact angle
+                const t = Math.min((swingProgress - 0.40) / 0.40, 1.0);
+                const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+                let diff = targetAngle - stanceAngle;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                curAngle = stanceAngle + diff * ease;
+            }
+
+            ctx.rotate(curAngle);
+
+            // Bat blade (willow)
+            ctx.fillStyle = '#D97706';
+            ctx.fillRect(2, -2.5, 17, 4);
+
+            // Bat handle
+            ctx.fillStyle = '#F59E0B';
+            ctx.fillRect(0, -1.5, 4, 3);
+
+            ctx.restore();
         }
+
         function drawBowler(runProgress) {
-            ctx.save(); ctx.translate(350, 20 + runProgress * 25); ctx.fillStyle = '#10B981'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+            ctx.save();
+            ctx.translate(350, 20 + runProgress * 25);
+            ctx.fillStyle = '#10B981';
+            ctx.beginPath();
+            ctx.arc(0, 0, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
         }
+
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 16; i++) {
+                const angle = (Math.PI * 2 / 16) * i;
+                const spd = 1.5 + Math.random() * 2.5;
+                fireworks.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * spd,
+                    vy: Math.sin(angle) * spd,
+                    alpha: 1.0,
+                    color: color
+                });
+            }
+        }
+
         function update() {
             drawGround();
             const curShot = SHOTS[shotIdx];
+
+            // Update Scoreboard HUD
             document.getElementById('hudShot').innerText = curShot.name;
+            document.getElementById('hudField').innerText = curShot.field;
+            document.getElementById('hudSpeed').innerText = curShot.speed;
             document.getElementById('hudRuns').innerText = curShot.runs;
+
+            // Compute ideal bat target angle towards shot destination
+            const targetAngle = Math.atan2(curShot.targetY - 192, curShot.targetX - 352);
+
             if (progress < 0.25) {
-                const pRun = progress / 0.25; drawBowler(pRun); drawBatsman(0, curShot.batAngle); drawBall(352, 20 + pRun * 25, 3.5);
+                // Phase 1: Bowler Run-up
+                const pRun = progress / 0.25;
+                drawBowler(pRun);
+                drawBatsman(0, targetAngle);
+                drawBall(350, 20 + pRun * 25, 3.5);
             } else if (progress < 0.50) {
-                drawBowler(1.0); const pDel = (progress - 0.25) / 0.25;
-                drawBatsman(pDel * 0.4, curShot.batAngle); drawBall(350 + Math.sin(pDel * Math.PI) * 4, 48 + pDel * 144, 4);
+                // Phase 2: Delivery down the pitch
+                drawBowler(1.0);
+                const pDel = (progress - 0.25) / 0.25;
+                drawBatsman(pDel * 0.45, targetAngle);
+                drawBall(350 + Math.sin(pDel * Math.PI) * 3, 48 + pDel * 144, 4);
             } else if (progress < 0.85) {
-                drawBowler(1.0); const pFlight = (progress - 0.50) / 0.35;
-                drawBatsman(0.5 + pFlight * 0.5, curShot.batAngle);
-                const bx = 352 + (curShot.targetX - 352) * pFlight, by = 192 + (curShot.targetY - 192) * pFlight;
-                trail.push({ x: bx, y: by, alpha: 0.9 }); drawBall(bx, by, 4.5);
+                // Phase 3: Shot Played - Ball flying to boundary
+                drawBowler(1.0);
+                const pFlight = (progress - 0.50) / 0.35;
+                drawBatsman(0.45 + pFlight * 0.55, targetAngle);
+
+                // Flash on bat impact
+                if (progress - 0.007 < 0.50) {
+                    impactFlash = 1.0;
+                }
+
+                const bx = 352 + (curShot.targetX - 352) * pFlight;
+                const by = 192 + (curShot.targetY - 192) * pFlight;
+                trail.push({ x: bx, y: by, alpha: 0.95, color: curShot.color });
+                drawBall(bx, by, 4.5, curShot.color);
             } else {
-                drawBowler(1.0); drawBatsman(1.0, curShot.batAngle); drawBall(curShot.targetX, curShot.targetY, 4.5);
+                // Phase 4: Boundary reach / Celebration
+                drawBowler(1.0);
+                drawBatsman(1.0, targetAngle);
+                drawBall(curShot.targetX, curShot.targetY, 4.5, curShot.color);
+
+                if (progress - 0.007 < 0.85) {
+                    createExplosion(curShot.targetX, curShot.targetY, curShot.color);
+                }
             }
+
+            // Impact flash at bat
+            if (impactFlash > 0) {
+                ctx.save();
+                ctx.fillStyle = `rgba(255, 255, 255, ${impactFlash})`;
+                ctx.beginPath();
+                ctx.arc(352, 192, 12 * (1.2 - impactFlash), 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+                impactFlash -= 0.1;
+            }
+
+            // Render Ball Speed Trail
             for (let i = trail.length - 1; i >= 0; i--) {
-                trail[i].alpha -= 0.04; if (trail[i].alpha <= 0) { trail.splice(i, 1); continue; }
-                ctx.fillStyle = `rgba(255, 213, 79, ${trail[i].alpha * 0.7})`; ctx.beginPath(); ctx.arc(trail[i].x, trail[i].y, 2, 0, Math.PI * 2); ctx.fill();
+                trail[i].alpha -= 0.035;
+                if (trail[i].alpha <= 0) {
+                    trail.splice(i, 1);
+                    continue;
+                }
+                ctx.fillStyle = trail[i].color || '#FFD54F';
+                ctx.globalAlpha = trail[i].alpha * 0.65;
+                ctx.beginPath();
+                ctx.arc(trail[i].x, trail[i].y, 2.8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
             }
+
+            // Render Boundary Fireworks Particles
+            for (let i = fireworks.length - 1; i >= 0; i--) {
+                const p = fireworks[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= 0.03;
+                if (p.alpha <= 0) {
+                    fireworks.splice(i, 1);
+                    continue;
+                }
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.alpha;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            }
+
             progress += 0.007;
-            if (progress >= 1.0) { progress = 0; trail = []; shotIdx = (shotIdx + 1) % SHOTS.length; }
+            if (progress >= 1.0) {
+                progress = 0;
+                trail = [];
+                fireworks = [];
+                shotIdx = (shotIdx + 1) % SHOTS.length;
+            }
+
             requestAnimationFrame(update);
         }
+
         update();
     </script>
     </body>
