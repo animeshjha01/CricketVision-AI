@@ -1,0 +1,107 @@
+# ==========================================
+# Virtual Environments
+# ==========================================
+.venv/
+venv/
+venv*/
+ENV/
+env/
+env.bak/
+bin/
+include/
+share/
+pyvenv.cfg
+
+# ==========================================
+# Python Bytecode & Runtime
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.mypy_cache/
+
+# ==========================================
+# Operating System & Archive Artifacts
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+__MACOSX/
+
+# ==========================================
+# IDE & Code Editors
+# ==========================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.claude/
+*.sublime-project
+*.sublime-workspace
+
+# ==========================================
+# Debug Frames, Crops & Extraction Dumps
+# ==========================================
+debug_crops/
+debug_crop_*.jpg
+debug_crop_vis.jpg
+debug_vis_frame.jpg
+frame_*.jpg
+crop_from_locate_box.jpg
+true_striker_crop.jpg
+backup_before_fix/
+*_backup.*
+*backup*
+
+# ==========================================
+# Large ML Models (>100MB Exceeds GitHub Limit)
+# Note: Use Git LFS if you want to push model files to GitHub
+# ==========================================
+*.pkl
+shot_model.pkl
+shot_model_v8_backup.pkl
+runs/
+.cache/
+*.pt
+
+# ==========================================
+# Raw Datasets & Preprocessed Features
+# Included for version control as requested
+# ==========================================
+# (Cricket Shots/ and *.npz are tracked and committed)
+
+# Allow the included single test clip if desired:
+# !user_test_cover_drive_3.mp4
+
+# ==========================================
+# Logs & Environment Secrets
+# ==========================================
+.streamlit/secrets.toml
+*.log
+*.tmp
+.env
+
