@@ -591,6 +591,7 @@ def render_cricket_stadium_hero_animation():
         ];
 
         let shotIdx = 0, progress = 0, trail = [], impactFlash = 0, fireworks = [];
+        const progressStep = 0.0034; // Smooth, relaxed viewing speed (~4.8s per delivery)
 
         function drawGround() {
             // Outfield stripes
@@ -773,7 +774,7 @@ def render_cricket_stadium_hero_animation():
                 drawBatsman(0.45 + pFlight * 0.55, targetAngle);
 
                 // Flash on bat impact
-                if (progress - 0.007 < 0.50) {
+                if (progress - progressStep < 0.50) {
                     impactFlash = 1.0;
                 }
 
@@ -787,7 +788,7 @@ def render_cricket_stadium_hero_animation():
                 drawBatsman(1.0, targetAngle);
                 drawBall(curShot.targetX, curShot.targetY, 4.5, curShot.color);
 
-                if (progress - 0.007 < 0.85) {
+                if (progress - progressStep < 0.85) {
                     createExplosion(curShot.targetX, curShot.targetY, curShot.color);
                 }
             }
@@ -800,12 +801,12 @@ def render_cricket_stadium_hero_animation():
                 ctx.arc(352, 192, 12 * (1.2 - impactFlash), 0, Math.PI * 2);
                 ctx.fill();
                 ctx.restore();
-                impactFlash -= 0.1;
+                impactFlash -= 0.05;
             }
 
             // Render Ball Speed Trail
             for (let i = trail.length - 1; i >= 0; i--) {
-                trail[i].alpha -= 0.035;
+                trail[i].alpha -= 0.015;
                 if (trail[i].alpha <= 0) {
                     trail.splice(i, 1);
                     continue;
@@ -823,7 +824,7 @@ def render_cricket_stadium_hero_animation():
                 const p = fireworks[i];
                 p.x += p.vx;
                 p.y += p.vy;
-                p.alpha -= 0.03;
+                p.alpha -= 0.015;
                 if (p.alpha <= 0) {
                     fireworks.splice(i, 1);
                     continue;
@@ -836,7 +837,7 @@ def render_cricket_stadium_hero_animation():
                 ctx.globalAlpha = 1.0;
             }
 
-            progress += 0.007;
+            progress += progressStep;
             if (progress >= 1.0) {
                 progress = 0;
                 trail = [];
