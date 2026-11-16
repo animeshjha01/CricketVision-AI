@@ -890,7 +890,7 @@ if has_active_result:
         with st.container(border=True):
             st.html("""
             <div class="section-banner">
-                <div class="section-banner-title"><span>🏆</span> 03 / Your shot breakdown</div>
+                <div class="section-banner-title">03 / Your shot breakdown</div>
                 <div class="section-banner-pill">SHOT REVIEW</div>
             </div>
             """)
@@ -957,7 +957,7 @@ if has_active_result:
         with st.container(border=True):
             st.html("""
             <div class="section-banner">
-                <div class="section-banner-title"><span>⚡</span> 04 / Movement & balance</div>
+                <div class="section-banner-title">04 / Movement & balance</div>
                 <div class="section-banner-pill">POSE ESTIMATES</div>
             </div>
             """)
@@ -1008,7 +1008,7 @@ if has_active_result:
         with st.container(border=True):
             st.html("""
             <div class="section-banner">
-                <div class="section-banner-title"><span>🏆</span> 05 / Take it to the nets</div>
+                <div class="section-banner-title">05 / Take it to the nets</div>
                 <div class="section-banner-pill">PRACTICE NOTES</div>
             </div>
             """)
@@ -1033,7 +1033,7 @@ if has_active_result:
             with st.container(border=True, key="pose_review"):
                 st.html("""
                 <div class="section-banner">
-                    <div class="section-banner-title"><span>🔬</span> 06 / A closer look at your stroke</div>
+                    <div class="section-banner-title">06 / A closer look at your stroke</div>
                     <div class="section-banner-pill">POSE VIEW</div>
                 </div>
                 """)
