@@ -969,7 +969,7 @@ if has_active_result:
                 st.html(f"""
                 <div class="cv-metric-card" style="background:#091E12; border:1px solid #1E5429; border-radius:14px; padding:1.2rem; margin-bottom:12px;">
                     <div style="font-size:0.75rem; text-transform:uppercase; color:#A7BBAE; margin-bottom:4px; display:flex; justify-content:space-between;">
-                        <span>⚡ Bat Swing Arc Speed</span><span style="color:#FFD54F;">ESTIMATE</span>
+                        <span>Bat Swing Arc Speed</span><span style="color:#FFD54F;">ESTIMATE</span>
                     </div>
                     <div style="font-family:'Arial',sans-serif; font-size:1.4rem; font-weight:700; color:#F8FAFC; margin-bottom:6px;">
                         {telem.get("bat_speed", 128.0):.1f} <span style="font-size:0.8rem; color:#A7BBAE;">km/h</span>
@@ -977,7 +977,7 @@ if has_active_result:
                 </div>
                 <div class="cv-metric-card" style="background:#091E12; border:1px solid #1E5429; border-radius:14px; padding:1.2rem; margin-bottom:12px;">
                     <div style="font-size:0.75rem; text-transform:uppercase; color:#A7BBAE; margin-bottom:4px; display:flex; justify-content:space-between;">
-                        <span>📐 Front Elbow Elevation</span><span style="color:#10B981;">2D ANGLE</span>
+                        <span>Front Elbow Elevation</span><span style="color:#10B981;">2D ANGLE</span>
                     </div>
                     <div style="font-family:'Arial',sans-serif; font-size:1.4rem; font-weight:700; color:#F8FAFC; margin-bottom:6px;">
                         {telem.get("elbow_angle", 152.0):.1f}°
@@ -988,7 +988,7 @@ if has_active_result:
                 st.html(f"""
                 <div class="cv-metric-card" style="background:#091E12; border:1px solid #1E5429; border-radius:14px; padding:1.2rem; margin-bottom:12px;">
                     <div style="font-size:0.75rem; text-transform:uppercase; color:#A7BBAE; margin-bottom:4px; display:flex; justify-content:space-between;">
-                        <span>🎯 Head Position Stillness</span><span style="color:#06B6D4;">2D ESTIMATE</span>
+                        <span>Head Position Stillness</span><span style="color:#06B6D4;">2D ESTIMATE</span>
                     </div>
                     <div style="font-family:'Arial',sans-serif; font-size:1.4rem; font-weight:700; color:#F8FAFC; margin-bottom:6px;">
                         {telem.get("head_stability", 92.0):.1f}%
@@ -996,7 +996,7 @@ if has_active_result:
                 </div>
                 <div class="cv-metric-card" style="background:#091E12; border:1px solid #1E5429; border-radius:14px; padding:1.2rem; margin-bottom:12px;">
                     <div style="font-size:0.75rem; text-transform:uppercase; color:#A7BBAE; margin-bottom:4px; display:flex; justify-content:space-between;">
-                        <span>⚖️ Weight Shift Dynamics</span><span style="color:#8B5CF6;">POSE PROXY</span>
+                        <span>Weight Shift Dynamics</span><span style="color:#8B5CF6;">POSE PROXY</span>
                     </div>
                     <div style="font-family:'Arial',sans-serif; font-size:1.4rem; font-weight:700; color:#F8FAFC; margin-bottom:6px;">
                         {telem.get("weight_front", 82.0):.1f}% <span style="font-size:0.75rem; color:#A7BBAE;">Front Foot</span>
