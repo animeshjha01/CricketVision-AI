@@ -7,19 +7,32 @@ batting technique using YOLO11-pose estimation, optical flow, and deep stacked e
 import os
 import sys
 import tempfile
+import hashlib
+import importlib
+from pathlib import Path
 import joblib
 import numpy as np
 import streamlit as st
 import streamlit.components.v1 as components
 from train_model import MODEL_PKL_PATH, StackedEnsemble
 from predict import analyze_batting_video
+import frontend
+import pose_replay
+importlib.reload(pose_replay)
+from pose_replay import prepare_replay, replay_html
+
+# Streamlit reruns this script while Python may retain imported modules.
+# Refresh the lightweight presentation module before binding its functions so
+# a running session can pick up frontend changes without restarting the server.
+importlib.reload(frontend)
+from frontend import apply_theme, render_header, section, render_field_notes, review_navigation, review_anchor
 
 sys.modules["__main__"].StackedEnsemble = StackedEnsemble
 
 st.set_page_config(
-    page_title="CricketVision AI — International Match Center & Biomechanics",
+    page_title="CricketVision | Your practice lab",
     page_icon="🏏",
-    layout="centered",
+    layout="wide",
     initial_sidebar_state="collapsed",
 )
 
@@ -236,624 +249,7 @@ VERIFIED_SAMPLES = {
     }
 }
 
-st.html("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=Orbitron:wght@400;500;600;700;800;900&display=swap');
-
-:root {
-    --cricket-pitch-tan: #B58E6B;
-    --turf-green: #2E7D32;
-    --outfield-dark: #05160A;
-    --outfield-light: #071E0E;
-    --accent-gold: #FFD54F;
-    --gold-glow: rgba(255, 213, 79, 0.45);
-    --cricket-ball-red: #D32F2F;
-    --card-bg: #0A2214;
-    --card-border: #1E5429;
-    --text-primary: #F8FAFC;
-    --text-secondary: #A7BBAE;
-    --success-green: #10B981;
-    --neon-cyan: #06B6D4;
-}
-
-html { scroll-behavior: smooth !important; }
-
-.stApp {
-    background:
-        radial-gradient(circle at 10% -5%, rgba(255, 235, 100, 0.16) 0%, rgba(255, 235, 100, 0.03) 40%, transparent 70%),
-        radial-gradient(circle at 90% -5%, rgba(255, 235, 100, 0.16) 0%, rgba(255, 235, 100, 0.03) 40%, transparent 70%),
-        radial-gradient(ellipse at 50% 16%, rgba(46, 125, 50, 0.25) 0%, transparent 65%),
-        radial-gradient(circle at 50% 90%, rgba(27, 94, 32, 0.18) 0%, transparent 65%),
-        linear-gradient(180deg, #041409 0%, #071E0E 40%, #041208 100%) !important;
-    font-family: 'Poppins', sans-serif !important;
-    color: var(--text-primary) !important;
-}
-
-#MainMenu, footer, header { visibility: hidden; }
-
-[data-testid="stVerticalBlockBorderWrapper"] > div {
-    background: linear-gradient(145deg, #0B2416 0%, #06180E 100%) !important;
-    border: 1.5px solid #1E5429 !important;
-    border-radius: 22px !important;
-    padding: 1.8rem 2rem !important;
-    margin-bottom: 2rem !important;
-    box-shadow: 0 14px 40px rgba(0,0,0,0.65), inset 0 1px 0 rgba(76,175,80,0.2) !important;
-    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s ease, border-color 0.35s ease !important;
-}
-[data-testid="stVerticalBlockBorderWrapper"] > div:hover {
-    transform: translateY(-4px) scale(1.002) !important;
-    border-color: rgba(76, 175, 80, 0.85) !important;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.75), 0 0 25px rgba(76,175,80,0.25) !important;
-}
-
-.broadcast-ticker {
-    background: rgba(4, 20, 10, 0.95);
-    border: 1px solid rgba(255, 213, 79, 0.35);
-    border-radius: 30px;
-    padding: 6px 18px;
-    margin-bottom: 1.2rem;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-family: 'Orbitron', monospace;
-    font-size: 0.74rem;
-    color: #FFD54F;
-    letter-spacing: 1.5px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-    overflow: hidden;
-}
-.ticker-pulse {
-    width: 8px;
-    height: 8px;
-    background: #FF1744;
-    border-radius: 50%;
-    animation: livePulse 1.2s infinite;
-    flex-shrink: 0;
-}
-@keyframes livePulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.3; transform: scale(0.65); }
-}
-
-@keyframes scorePulse {
-    0% { transform: scale(1); filter: drop-shadow(0 0 4px var(--gold-glow)); }
-    50% { transform: scale(1.02); filter: drop-shadow(0 0 20px var(--accent-gold)); }
-    100% { transform: scale(1); filter: drop-shadow(0 0 4px var(--gold-glow)); }
-}
-
-.hero-container {
-    background: linear-gradient(135deg, #1B5E20 0%, #0E3E18 50%, #06210B 100%);
-    border-radius: 24px;
-    padding: 2.5rem 2.2rem 2rem;
-    margin-bottom: 1.5rem;
-    border: 1.5px solid rgba(76, 175, 80, 0.5);
-    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255,255,255,0.2);
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-}
-.hero-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: linear-gradient(135deg, rgba(255,213,79,0.25), rgba(255,193,7,0.1));
-    border: 1px solid rgba(255,213,79,0.5);
-    border-radius: 30px;
-    padding: 6px 20px;
-    font-size: 0.8rem;
-    font-family: 'Orbitron', monospace;
-    color: var(--accent-gold);
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    margin-bottom: 12px;
-}
-.hero-title {
-    font-family: 'Orbitron', monospace;
-    font-size: 2.8rem;
-    font-weight: 900;
-    background: linear-gradient(135deg, #FFFFFF 0%, #FFD54F 55%, #FFB300 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    letter-spacing: 2.5px;
-    margin-bottom: 0.5rem;
-}
-.hero-subtitle {
-    font-size: 1.02rem;
-    color: rgba(255,255,255,0.88);
-    font-weight: 300;
-    line-height: 1.6;
-    max-width: 680px;
-    margin: 0 auto;
-}
-
-.section-banner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-bottom: 0.9rem;
-    margin-bottom: 1.4rem;
-    border-bottom: 1px solid rgba(76, 175, 80, 0.3);
-}
-.section-banner-title {
-    font-family: 'Orbitron', monospace;
-    font-size: 1.12rem;
-    font-weight: 700;
-    color: #F8FAFC;
-    letter-spacing: 1px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-.section-banner-pill {
-    font-size: 0.72rem;
-    font-family: 'Orbitron', monospace;
-    background: rgba(76, 175, 80, 0.22);
-    color: #81C784;
-    border: 1px solid rgba(76, 175, 80, 0.45);
-    padding: 4px 12px;
-    border-radius: 14px;
-}
-
-.scoreboard-card {
-    background: linear-gradient(135deg, #0F2D1C 0%, #0A2214 50%, #06180E 100%);
-    border: 1.5px solid rgba(255, 213, 79, 0.45);
-    border-radius: 20px;
-    padding: 2.2rem 2rem;
-    margin-bottom: 1.6rem;
-    text-align: center;
-    box-shadow: 0 16px 45px rgba(0,0,0,0.65);
-    position: relative;
-}
-.scoreboard-card::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; height: 3.5px;
-    background: linear-gradient(90deg, var(--accent-gold), var(--success-green), var(--neon-cyan));
-    border-radius: 20px 20px 0 0;
-}
-.scoreboard-shot {
-    font-family: 'Orbitron', monospace;
-    font-size: 2.8rem;
-    font-weight: 900;
-    color: #FFFFFF;
-    letter-spacing: 2px;
-    margin: 10px 0;
-    animation: scorePulse 2.8s ease-in-out infinite;
-}
-
-.stButton > button {
-    background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 50%, #388E3C 100%) !important;
-    color: white !important;
-    font-family: 'Orbitron', monospace !important;
-    font-weight: 700 !important;
-    font-size: 1.15rem !important;
-    letter-spacing: 2px !important;
-    text-transform: uppercase !important;
-    border: 1px solid rgba(76,175,80,0.7) !important;
-    border-radius: 16px !important;
-    padding: 1.1rem 2rem !important;
-    width: 100% !important;
-    box-shadow: 0 12px 35px rgba(27,94,32,0.65) !important;
-    transition: all 0.25s ease !important;
-}
-.stButton > button:hover {
-    background: linear-gradient(135deg, #2E7D32 0%, #388E3C 50%, #43A047 100%) !important;
-    box-shadow: 0 16px 45px rgba(46,125,50,0.8) !important;
-    transform: translateY(-2px) !important;
-}
-
-.cricket-divider {
-    height: 1px;
-    background: linear-gradient(90deg, transparent, #2E7D32, transparent);
-    margin: 2.5rem 0 1.8rem;
-}
-.cricket-footer {
-    text-align: center;
-    padding: 1.5rem 0 2rem;
-    font-family: 'Poppins', sans-serif;
-    font-size: 0.82rem;
-    color: #8BA896;
-    line-height: 1.6;
-}
-
-/* Compact Responsive Video Player Frame */
-div[data-testid="stVideo"] {
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    margin: 10px auto !important;
-    max-height: 285px !important;
-}
-div[data-testid="stVideo"] video {
-    max-height: 280px !important;
-    width: auto !important;
-    max-width: 100% !important;
-    border-radius: 14px !important;
-    border: 1.5px solid rgba(76, 175, 80, 0.5) !important;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.75) !important;
-    object-fit: contain !important;
-}
-
-/* Step 6 Skeleton Frame containment */
-div[data-testid="stImage"] {
-    display: flex !important;
-    justify-content: center !important;
-}
-div[data-testid="stImage"] img {
-    max-height: 320px !important;
-    width: auto !important;
-    object-fit: contain !important;
-    border-radius: 12px !important;
-}
-</style>
-""")
-
-
-def render_cricket_stadium_hero_animation():
-    hero_anim_html = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <meta charset="utf-8">
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: transparent; font-family: 'Segoe UI', system-ui, sans-serif; overflow: hidden; display: flex; justify-content: center; }
-        #stage { position: relative; width: 700px; height: 270px; border-radius: 20px; overflow: hidden; border: 2px solid #2E7D32; box-shadow: 0 14px 40px rgba(0,0,0,0.8), inset 0 0 20px rgba(46,125,50,0.4); background: #0A2612; }
-        canvas { display: block; }
-        .match-badge { position: absolute; top: 10px; left: 14px; background: rgba(8, 26, 14, 0.88); border: 1px solid rgba(255, 213, 79, 0.45); border-radius: 20px; padding: 5px 14px; font-family: 'Courier New', monospace; font-size: 11px; font-weight: 700; color: #FFD54F; letter-spacing: 1.5px; text-transform: uppercase; display: flex; align-items: center; gap: 6px; z-index: 10; }
-        .pulse-dot { width: 7px; height: 7px; background: #FF1744; border-radius: 50%; animation: redBlink 1s infinite; }
-        @keyframes redBlink { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.3; transform: scale(0.7); } }
-        .scoreboard-hud { position: absolute; bottom: 10px; left: 14px; right: 14px; background: linear-gradient(90deg, rgba(7, 21, 12, 0.94) 0%, rgba(12, 38, 20, 0.96) 50%, rgba(7, 21, 12, 0.94) 100%); border: 1px solid rgba(76, 175, 80, 0.45); border-radius: 12px; padding: 6px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #E2E8F0; letter-spacing: 0.8px; z-index: 10; }
-        .shot-tag { color: #FFD54F; font-weight: 800; font-family: monospace; font-size: 12px; }
-        .runs-pill { background: #D32F2F; color: white; font-weight: 900; padding: 2px 10px; border-radius: 12px; font-size: 11px; }
-    </style>
-    </head>
-    <body>
-    <div id="stage">
-        <canvas id="matchCanvas" width="700" height="270"></canvas>
-        <div class="match-badge"><div class="pulse-dot"></div><span>🔴 60 FPS CRICKET STADIUM ACTION</span></div>
-        <div class="scoreboard-hud">
-            <div>CURRENT STROKE: <span id="hudShot" class="shot-tag">VIRAT KOHLI COVER DRIVE</span></div>
-            <div>TARGET: <span id="hudField" style="color:#38BDF8; font-weight:700;">EXTRA COVER (OFF SIDE)</span></div>
-            <div>SPEED: <span id="hudSpeed" style="color:#10B981; font-weight:700;">142.4 KM/H</span></div>
-            <div id="hudRuns" class="runs-pill">4 RUNS</div>
-        </div>
-    </div>
-    <script>
-        const canvas = document.getElementById('matchCanvas');
-        const ctx = canvas.getContext('2d');
-
-        // Strictly calibrated for Right-Handed Batsman (RHB) Perspective:
-        // Batsman stands at bottom crease (352, 192) facing UP towards bowler at (350, 48).
-        // LEFT side (X < 352)  = LEG SIDE (Midwicket, Square Leg, Fine Leg, Long-On)
-        // RIGHT side (X > 352) = OFF SIDE (Covers, Point, Third Man, Long-Off)
-        const SHOTS = [
-            {
-                name: "VIRAT KOHLI COVER DRIVE",
-                field: "EXTRA COVER (OFF SIDE)",
-                type: "FOUR",
-                runs: "4 RUNS",
-                targetX: 575,
-                targetY: 48,
-                speed: "142.4 KM/H",
-                color: "#10B981"
-            },
-            {
-                name: "ROHIT SHARMA PULL SHOT",
-                field: "DEEP MIDWICKET (LEG SIDE)",
-                type: "SIX",
-                runs: "6 RUNS",
-                targetX: 125,
-                targetY: 55,
-                speed: "148.2 KM/H",
-                color: "#FFD54F"
-            },
-            {
-                name: "MS DHONI HELICOPTER SHOT",
-                field: "DEEP MIDWICKET (LEG SIDE)",
-                type: "SIX",
-                runs: "6 RUNS",
-                targetX: 145,
-                targetY: 40,
-                speed: "151.2 KM/H",
-                color: "#A855F7"
-            },
-            {
-                name: "SACHIN TENDULKAR STRAIGHT DRIVE",
-                field: "LONG OFF (DOWN GROUND)",
-                type: "FOUR",
-                runs: "4 RUNS",
-                targetX: 346,
-                targetY: 25,
-                speed: "139.8 KM/H",
-                color: "#38BDF8"
-            },
-            {
-                name: "BRIAN LARA LATE CUT",
-                field: "DEEP THIRD MAN (OFF SIDE)",
-                type: "FOUR",
-                runs: "4 RUNS",
-                targetX: 615,
-                targetY: 220,
-                speed: "136.5 KM/H",
-                color: "#F43F5E"
-            },
-            {
-                name: "SURYAKUMAR YADAV SCOOP",
-                field: "FINE LEG (LEG SIDE)",
-                type: "SIX",
-                runs: "6 RUNS",
-                targetX: 105,
-                targetY: 215,
-                speed: "144.2 KM/H",
-                color: "#FB923C"
-            }
-        ];
-
-        let shotIdx = 0, progress = 0, trail = [], impactFlash = 0, fireworks = [];
-        const progressStep = 0.0034; // Smooth, relaxed viewing speed (~4.8s per delivery)
-
-        function drawGround() {
-            // Outfield stripes
-            for (let i = 0; i < 14; i++) {
-                ctx.fillStyle = (i % 2 === 0) ? '#0D3319' : '#144622';
-                ctx.fillRect(i * 50, 0, 50, 270);
-            }
-
-            // Boundary rope (dashed ellipse)
-            ctx.strokeStyle = '#FFFFFF';
-            ctx.lineWidth = 2.5;
-            ctx.setLineDash([7, 5]);
-            ctx.beginPath();
-            ctx.ellipse(350, 135, 325, 118, 0, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            // 30-yard inner circle
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
-            ctx.lineWidth = 1.5;
-            ctx.setLineDash([4, 4]);
-            ctx.beginPath();
-            ctx.ellipse(350, 135, 190, 70, 0, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            // Pitch turf (22 yards)
-            const pGrad = ctx.createLinearGradient(325, 0, 375, 0);
-            pGrad.addColorStop(0, '#7A5B3E');
-            pGrad.addColorStop(0.5, '#C4A47C');
-            pGrad.addColorStop(1, '#7A5B3E');
-            ctx.fillStyle = pGrad;
-            ctx.fillRect(325, 25, 50, 195);
-
-            // Bowling and Batting creases
-            ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.moveTo(320, 48); ctx.lineTo(380, 48);
-            ctx.moveTo(320, 196); ctx.lineTo(380, 196);
-            ctx.stroke();
-
-            // Stumps at both ends
-            ctx.fillStyle = '#FFD54F';
-            ctx.fillRect(346, 45, 8, 3);
-            ctx.fillRect(346, 208, 8, 3);
-
-            // Field orientation labels (RHB perspective)
-            ctx.font = '700 9px monospace';
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
-            ctx.textAlign = 'center';
-
-            // Top end (Bowler & Down Ground)
-            ctx.fillText("BOWLER RUN-UP", 350, 16);
-            ctx.fillText("LONG ON", 260, 32);
-            ctx.fillText("LONG OFF", 440, 32);
-
-            // Left side = Leg Side
-            ctx.fillText("LEG SIDE (MIDWICKET)", 140, 48);
-            ctx.fillText("SQUARE LEG", 110, 138);
-            ctx.fillText("FINE LEG", 130, 232);
-
-            // Right side = Off Side
-            ctx.fillText("OFF SIDE (COVERS)", 560, 48);
-            ctx.fillText("POINT", 590, 138);
-            ctx.fillText("THIRD MAN", 570, 232);
-
-            // Bottom end (Behind Batsman)
-            ctx.fillText("WICKETKEEPER", 352, 232);
-        }
-
-        function drawBall(x, y, r, glowColor) {
-            ctx.save();
-            ctx.translate(x, y);
-            if (glowColor) {
-                ctx.shadowColor = glowColor;
-                ctx.shadowBlur = 10;
-            }
-            ctx.fillStyle = '#EF4444';
-            ctx.beginPath();
-            ctx.arc(0, 0, r, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-        }
-
-        function drawBatsman(swingProgress, targetAngle) {
-            ctx.save();
-            ctx.translate(352, 192);
-
-            // Batsman body
-            ctx.fillStyle = '#F8FAFC';
-            ctx.beginPath();
-            ctx.arc(0, 0, 6.5, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Bat stance & swing transition
-            // Cocked backlift stance towards slips (~ +0.85 rad)
-            const stanceAngle = 0.85;
-            let curAngle;
-            if (swingProgress < 0.40) {
-                // Address stance / bat tap
-                curAngle = stanceAngle + Math.sin(swingProgress * Math.PI * 10) * 0.08;
-            } else {
-                // Downswing into target impact angle
-                const t = Math.min((swingProgress - 0.40) / 0.40, 1.0);
-                const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-                let diff = targetAngle - stanceAngle;
-                while (diff > Math.PI) diff -= Math.PI * 2;
-                while (diff < -Math.PI) diff += Math.PI * 2;
-                curAngle = stanceAngle + diff * ease;
-            }
-
-            ctx.rotate(curAngle);
-
-            // Bat blade (willow)
-            ctx.fillStyle = '#D97706';
-            ctx.fillRect(2, -2.5, 17, 4);
-
-            // Bat handle
-            ctx.fillStyle = '#F59E0B';
-            ctx.fillRect(0, -1.5, 4, 3);
-
-            ctx.restore();
-        }
-
-        function drawBowler(runProgress) {
-            ctx.save();
-            ctx.translate(350, 20 + runProgress * 25);
-            ctx.fillStyle = '#10B981';
-            ctx.beginPath();
-            ctx.arc(0, 0, 5, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-        }
-
-        function createExplosion(x, y, color) {
-            for (let i = 0; i < 16; i++) {
-                const angle = (Math.PI * 2 / 16) * i;
-                const spd = 1.5 + Math.random() * 2.5;
-                fireworks.push({
-                    x: x,
-                    y: y,
-                    vx: Math.cos(angle) * spd,
-                    vy: Math.sin(angle) * spd,
-                    alpha: 1.0,
-                    color: color
-                });
-            }
-        }
-
-        function update() {
-            drawGround();
-            const curShot = SHOTS[shotIdx];
-
-            // Update Scoreboard HUD
-            document.getElementById('hudShot').innerText = curShot.name;
-            document.getElementById('hudField').innerText = curShot.field;
-            document.getElementById('hudSpeed').innerText = curShot.speed;
-            document.getElementById('hudRuns').innerText = curShot.runs;
-
-            // Compute ideal bat target angle towards shot destination
-            const targetAngle = Math.atan2(curShot.targetY - 192, curShot.targetX - 352);
-
-            if (progress < 0.25) {
-                // Phase 1: Bowler Run-up
-                const pRun = progress / 0.25;
-                drawBowler(pRun);
-                drawBatsman(0, targetAngle);
-                drawBall(350, 20 + pRun * 25, 3.5);
-            } else if (progress < 0.50) {
-                // Phase 2: Delivery down the pitch
-                drawBowler(1.0);
-                const pDel = (progress - 0.25) / 0.25;
-                drawBatsman(pDel * 0.45, targetAngle);
-                drawBall(350 + Math.sin(pDel * Math.PI) * 3, 48 + pDel * 144, 4);
-            } else if (progress < 0.85) {
-                // Phase 3: Shot Played - Ball flying to boundary
-                drawBowler(1.0);
-                const pFlight = (progress - 0.50) / 0.35;
-                drawBatsman(0.45 + pFlight * 0.55, targetAngle);
-
-                // Flash on bat impact
-                if (progress - progressStep < 0.50) {
-                    impactFlash = 1.0;
-                }
-
-                const bx = 352 + (curShot.targetX - 352) * pFlight;
-                const by = 192 + (curShot.targetY - 192) * pFlight;
-                trail.push({ x: bx, y: by, alpha: 0.95, color: curShot.color });
-                drawBall(bx, by, 4.5, curShot.color);
-            } else {
-                // Phase 4: Boundary reach / Celebration
-                drawBowler(1.0);
-                drawBatsman(1.0, targetAngle);
-                drawBall(curShot.targetX, curShot.targetY, 4.5, curShot.color);
-
-                if (progress - progressStep < 0.85) {
-                    createExplosion(curShot.targetX, curShot.targetY, curShot.color);
-                }
-            }
-
-            // Impact flash at bat
-            if (impactFlash > 0) {
-                ctx.save();
-                ctx.fillStyle = `rgba(255, 255, 255, ${impactFlash})`;
-                ctx.beginPath();
-                ctx.arc(352, 192, 12 * (1.2 - impactFlash), 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-                impactFlash -= 0.05;
-            }
-
-            // Render Ball Speed Trail
-            for (let i = trail.length - 1; i >= 0; i--) {
-                trail[i].alpha -= 0.015;
-                if (trail[i].alpha <= 0) {
-                    trail.splice(i, 1);
-                    continue;
-                }
-                ctx.fillStyle = trail[i].color || '#FFD54F';
-                ctx.globalAlpha = trail[i].alpha * 0.65;
-                ctx.beginPath();
-                ctx.arc(trail[i].x, trail[i].y, 2.8, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.globalAlpha = 1.0;
-            }
-
-            // Render Boundary Fireworks Particles
-            for (let i = fireworks.length - 1; i >= 0; i--) {
-                const p = fireworks[i];
-                p.x += p.vx;
-                p.y += p.vy;
-                p.alpha -= 0.015;
-                if (p.alpha <= 0) {
-                    fireworks.splice(i, 1);
-                    continue;
-                }
-                ctx.fillStyle = p.color;
-                ctx.globalAlpha = p.alpha;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.globalAlpha = 1.0;
-            }
-
-            progress += progressStep;
-            if (progress >= 1.0) {
-                progress = 0;
-                trail = [];
-                fireworks = [];
-                shotIdx = (shotIdx + 1) % SHOTS.length;
-            }
-
-            requestAnimationFrame(update);
-        }
-
-        update();
-    </script>
-    </body>
-    </html>
-    """
-    components.html(hero_anim_html, height=290)
+apply_theme()
 
 
 def render_hawkeye_canvas_simulator(ball_length: str, ball_line: str):
@@ -902,15 +298,15 @@ def render_hawkeye_canvas_simulator(ball_length: str, ball_line: str):
     <meta charset="utf-8">
     <style>
         body {{ margin: 0; padding: 0; background: transparent; display: flex; justify-content: center; align-items: center; overflow: hidden; }}
-        #container {{ position: relative; width: 520px; height: 325px; background: radial-gradient(circle at 50% 50%, #0D2816 0%, #06150B 100%); border: 2px solid #2E7D32; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }}
-        canvas {{ display: block; }}
+        #container {{ position: relative; width: min(100%, 520px); aspect-ratio: 520 / 325; background: radial-gradient(circle at 50% 50%, #0D2816 0%, #06150B 100%); border: 2px solid #2E7D32; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }}
+        canvas {{ display: block; width: 100%; height: auto; }}
         .hud-overlay {{ position: absolute; bottom: 8px; left: 10px; right: 10px; text-align: center; font-size: 10px; font-family: monospace; color: #FFD54F; letter-spacing: 1.2px; background: rgba(5, 20, 10, 0.92); border: 1px solid rgba(76, 175, 80, 0.4); border-radius: 10px; padding: 5px 10px; }}
     </style>
     </head>
     <body>
     <div id="container">
         <canvas id="pitchCanvas" width="520" height="325"></canvas>
-        <div class="hud-overlay">🔴 HAWK-EYE 3D RADAR: {meta['tag']} · {ball_line.upper()} · {meta['desc']}</div>
+        <div class="hud-overlay">DELIVERY GUIDE: {meta['tag']} · {ball_line.upper()} · {meta['desc']}</div>
     </div>
     <script>
         const canvas = document.getElementById('pitchCanvas');
@@ -1061,7 +457,7 @@ def render_hawkeye_canvas_simulator(ball_length: str, ball_line: str):
             }}
 
             t = (t + 0.013) % 1.0;
-            requestAnimationFrame(drawPitch);
+            if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) requestAnimationFrame(drawPitch);
         }}
         drawPitch();
     </script>
@@ -1113,8 +509,8 @@ def render_cricket_wagon_wheel(shot_name: str, shot_family: str, handedness: str
     <style>
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
         body {{ background: transparent; display: flex; justify-content: center; overflow: hidden; }}
-        #container {{ position: relative; width: 620px; height: 280px; border-radius: 20px; overflow: hidden; border: 2px solid #2E7D32; background: #0A2612; }}
-        canvas {{ display: block; }}
+        #container {{ position: relative; width: min(100%, 620px); aspect-ratio: 620 / 280; border-radius: 20px; overflow: hidden; border: 2px solid #2E7D32; background: #0A2612; }}
+        canvas {{ display: block; width: 100%; height: auto; }}
         .hud-banner {{ position: absolute; bottom: 8px; left: 14px; right: 14px; background: rgba(8, 26, 14, 0.92); border: 1px solid rgba(255, 213, 79, 0.4); border-radius: 12px; padding: 5px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #E2E8F0; font-family: monospace; }}
     </style>
     </head>
@@ -1123,8 +519,7 @@ def render_cricket_wagon_wheel(shot_name: str, shot_family: str, handedness: str
         <canvas id="wagonCanvas" width="620" height="280"></canvas>
         <div class="hud-banner">
             <div>WAGON WHEEL: <span style="color:#FFD54F; font-weight:700;">{zone_name}</span></div>
-            <div>DISTANCE: <span style="color:#10B981; font-weight:700;">{dist}</span></div>
-            <div style="background:#D32F2F; color:white; font-weight:900; padding:2px 8px; border-radius:10px;">{runs}</div>
+            <div>ILLUSTRATIVE ZONE</div>
         </div>
     </div>
     <script>
@@ -1228,7 +623,7 @@ def render_cricket_wagon_wheel(shot_name: str, shot_family: str, handedness: str
             ctx.stroke();
 
             progress = (progress + 0.016) % 1.35;
-            requestAnimationFrame(update);
+            if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) requestAnimationFrame(update);
         }}
         update();
     </script>
@@ -1242,48 +637,25 @@ def render_circular_gauge(percentage: float, title: str, color_hex: str, subtitl
     deg = percentage * 3.6
     grade = "PRO GRADE" if percentage >= 88 else ("SOLID" if percentage >= 75 else "DEVELOPING")
     badge_bg = "rgba(16, 185, 129, 0.2)" if percentage >= 88 else ("rgba(255, 213, 79, 0.2)" if percentage >= 75 else "rgba(239, 68, 68, 0.2)")
-    sub_text = subtitle if subtitle else ("Biomechanical Purity" if "Execution" in title else "Neural DRS Confidence")
+    sub_text = subtitle if subtitle else ("Technique estimate" if "Execution" in title else "Shot classification confidence")
 
     return f"""
-    <div style="background: linear-gradient(145deg, #0A2214 0%, #06160D 100%); border: 1.5px solid #1E5429; border-radius: 20px; padding: 22px 16px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.55); position: relative; overflow: hidden;">
+    <div class="cv-result-card" style="background: linear-gradient(145deg, #0A2214 0%, #06160D 100%); border: 1.5px solid #1E5429; border-radius: 20px; padding: 22px 16px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.55); position: relative; overflow: hidden;">
         <div style="position: relative; width: 116px; height: 116px; margin: 0 auto 14px; border-radius: 50%; background: conic-gradient({color_hex} 0deg, {color_hex} {deg:.1f}deg, #10331C {deg:.1f}deg 360deg); display: flex; align-items: center; justify-content: center;">
             <div style="width: 90px; height: 90px; border-radius: 50%; background: #07190E; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                <div style="font-family: 'Orbitron', monospace; font-size: 1.35rem; font-weight: 900; color: {color_hex}; line-height: 1;">
+                <div style="font-family: 'Arial', sans-serif; font-size: 1.35rem; font-weight: 900; color: {color_hex}; line-height: 1;">
                     {percentage:.1f}%
                 </div>
-                <div style="font-size: 0.62rem; font-family: 'Orbitron', monospace; font-weight: 700; color: #E2E8F0; text-transform: uppercase; margin-top: 4px; background: {badge_bg}; padding: 2px 6px; border-radius: 8px;">
+                <div style="font-size: 0.62rem; font-family: 'Arial', sans-serif; font-weight: 700; color: #E2E8F0; text-transform: uppercase; margin-top: 4px; background: {badge_bg}; padding: 2px 6px; border-radius: 8px;">
                     {grade}
                 </div>
             </div>
         </div>
-        <div style="font-family: 'Poppins', sans-serif; font-size: 0.88rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #F8FAFC; margin-bottom: 2px;">
+        <div style="font-family: 'Arial', sans-serif; font-size: 0.88rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #F8FAFC; margin-bottom: 2px;">
             {title}
         </div>
         <div style="font-size: 0.74rem; color: #A7BBAE; font-weight: 500;">
             {sub_text}
-        </div>
-    </div>
-    """
-
-
-def render_snickometer():
-    return """
-    <div style="background: linear-gradient(145deg, #091F12 0%, #05130A 100%); border: 1px solid #1E5429; border-radius: 16px; padding: 14px 18px; margin: 1.4rem 0;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <span style="font-family: 'Orbitron', monospace; font-size: 0.8rem; font-weight: 700; color: #FFD54F; letter-spacing: 1.2px;">🔊 DRS ULTRAEDGE SNICKOMETER</span>
-            <span style="font-size: 0.68rem; font-family: 'Orbitron', monospace; font-weight: 700; background: rgba(16,185,129,0.2); color: #10B981; padding: 2px 10px; border-radius: 10px;">CLEAN WILLOW CONTACT CONFIRMED</span>
-        </div>
-        <div style="height: 42px; display: flex; align-items: center; justify-content: space-between; background: #030C06; border-radius: 10px; padding: 0 14px;">
-            <div style="width: 3px; height: 6px; background: #10B981;"></div>
-            <div style="width: 3px; height: 10px; background: #10B981;"></div>
-            <div style="width: 3px; height: 12px; background: #10B981;"></div>
-            <div style="width: 3px; height: 14px; background: #10B981;"></div>
-            <div style="width: 3px; height: 26px; background: #FFD54F;"></div>
-            <div style="width: 4px; height: 38px; background: #FF1744; box-shadow: 0 0 10px #FF1744;"></div>
-            <div style="width: 3px; height: 28px; background: #FFD54F;"></div>
-            <div style="width: 3px; height: 16px; background: #10B981;"></div>
-            <div style="width: 3px; height: 10px; background: #10B981;"></div>
-            <div style="width: 3px; height: 7px; background: #10B981;"></div>
         </div>
     </div>
     """
@@ -1348,12 +720,16 @@ def load_bundle():
 
 
 def analyze_video(video_path: str, ball_length: str, ball_line: str, file_hint: str = "",
-                  handedness: str = "Right-Handed (RHB)"):
+                  handedness: str = "Right-Handed (RHB)", on_progress=None):
+    if on_progress:
+        on_progress("Tracking the batter, extracting motion and identifying the stroke…")
     res = analyze_batting_video(video_path, ball_length, ball_line, handedness=handedness, file_hint=file_hint)
     if "error" in res:
         return res
 
     best_core_key = res["best_core_key"]
+    if on_progress:
+        on_progress("Preparing movement estimates and coaching checkpoints…")
     telemetry = compute_biomechanics(res["pose_seq"], best_core_key)
 
     masterclass_key = best_core_key
@@ -1394,137 +770,112 @@ if "analyzed_video" not in st.session_state:
 if "last_result" not in st.session_state:
     st.session_state["last_result"] = None
 
-st.html("""
-<div class="broadcast-ticker">
-    <div class="ticker-pulse"></div>
-    <span>🔴 LIVE MATCH ANALYSIS · CRICKETVISION AI DRS ACTIVE · 60 FPS ULTRA-MOTION CAMERA SENSOR · 23 SHOT REPERTOIRE</span>
-</div>
-<div class="hero-container">
-    <div class="hero-badge">🏏 INTERNATIONAL CRICKET BROADCAST SUITE</div>
-    <div class="hero-title">CRICKETVISION AI</div>
-    <div class="hero-subtitle">
-        Elite batting biomechanics & stroke analysis engine. Powered by YOLO11-pose skeleton tracking,
-        Farneback optical flow velocity, and 2-stage stacked meta-learning across 23 shot variations.
-    </div>
-</div>
-""")
+render_header(compact=bool(st.session_state.get("batting_upload"))
+              and st.session_state.get("footage_source") == "Upload your clip")
 
-render_cricket_stadium_hero_animation()
+def set_delivery(length, line):
+    st.session_state["selected_length"] = length
+    st.session_state["selected_line"] = line
+    st.session_state["sb_len"] = length
+    st.session_state["sb_line"] = line
 
-with st.container(border=True):
-    st.html("""
-    <div class="section-banner">
-        <div class="section-banner-title"><span>🏏</span> STEP 1: SELECT OR UPLOAD BATTING FOOTAGE</div>
-        <div class="section-banner-pill">EQUIPMENT INGEST</div>
-    </div>
-    """)
 
-    input_mode = st.radio(
-        "VIDEO SELECTION MODE",
-        ["🏏 Try Verified Sample Signature Clips", "📤 Upload Custom Match Clip"],
-        horizontal=True,
-        label_visibility="collapsed"
-    )
+clip_column, delivery_column = st.columns([1.15, 1], gap="large")
+active_video_path = None
+file_hint = ""
+with clip_column:
+    with st.container(border=True):
+        section("01 / Your batting footage", "THE NET SESSION")
+        preview_slot = st.empty()
+        input_mode = st.radio("Footage source", ["Sample library", "Upload your clip"], horizontal=True, key="footage_source")
+        if input_mode == "Sample library":
+            sample_choice = st.selectbox("Choose a stroke", list(VERIFIED_SAMPLES.keys()))
+            sample_info = VERIFIED_SAMPLES[sample_choice]
+            active_video_path = str(Path(__file__).parent / sample_info["path"])
+            st.caption(sample_info["desc"])
+            st.button("Use this sample's delivery", on_click=set_delivery,
+                      args=(sample_info["length"], sample_info["line"]), use_container_width=True)
+            if not os.path.exists(active_video_path):
+                st.warning("This sample is unavailable. Choose another stroke or upload your own clip.")
+        else:
+            uploaded_file = st.file_uploader("Drop your batting clip here", type=["mp4", "mov", "avi", "mkv"], key="batting_upload")
+            st.caption("One stroke. A steady camera. Keep the bat and both feet in frame.")
+            if uploaded_file is not None:
+                payload = uploaded_file.getvalue()
+                digest = hashlib.sha256(payload).hexdigest()
+                if st.session_state.get("upload_digest") != digest:
+                    previous = st.session_state.get("upload_path")
+                    if previous and os.path.isfile(previous):
+                        os.unlink(previous)
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=Path(uploaded_file.name).suffix) as tmp:
+                        tmp.write(payload)
+                        st.session_state["upload_path"] = tmp.name
+                    st.session_state["upload_digest"] = digest
+                active_video_path = st.session_state["upload_path"]
+                file_hint = uploaded_file.name
+        if active_video_path and os.path.isfile(active_video_path):
+            with preview_slot.container():
+                st.html('<div class="cv-replay-label"><span>AT THE CREASE / VIDEO REVIEW</span><span>YOUR STROKE. IN FOCUS.</span></div>')
+                st.video(active_video_path)
+        else:
+            preview_slot.html('<div class="cv-empty"><strong>Your next innings starts here.</strong>Add a clip to start your batting review.</div>')
+        handedness = st.selectbox("Batting hand", ["Right-Handed (RHB)", "Left-Handed (LHB)"], key="sb_handedness")
 
-    active_video_path = None
-
-    if input_mode == "🏏 Try Verified Sample Signature Clips":
-        sample_choice = st.selectbox(
-            "CHOOSE A VERIFIED SIGNATURE SHOT CLIP",
-            list(VERIFIED_SAMPLES.keys()),
-        )
-        sample_info = VERIFIED_SAMPLES[sample_choice]
-        active_video_path = sample_info["path"]
-        st.caption(f"ℹ️ {sample_info['desc']}")
-
-        m_col1, m_col2 = st.columns([1.2, 1.0])
-        with m_col1:
-            if st.button(f"🎯 Match Radar to Recommended {sample_info['length']} & {sample_info['line']}", use_container_width=True):
-                st.session_state["selected_length"] = sample_info["length"]
-                st.session_state["selected_line"] = sample_info["line"]
-                st.rerun()
-    else:
-        uploaded_file = st.file_uploader(
-            "Upload Batting Clip (MP4, MOV, AVI, MKV)",
-            type=["mp4", "mov", "avi", "mkv"],
-        )
-        if uploaded_file is not None:
-            st.session_state["active_file_name"] = uploaded_file.name
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
-                tmp.write(uploaded_file.read())
-                active_video_path = tmp.name
-
-    if active_video_path and os.path.exists(active_video_path):
-        _, v_center_col, _ = st.columns([0.8, 2.4, 0.8])
-        with v_center_col:
-            st.video(active_video_path)
-
-    handedness = st.selectbox(
-        "BATTER HANDEDNESS (affects which side is Off/Leg in the analysis)",
-        ["Right-Handed (RHB)", "Left-Handed (LHB)"],
-        key="sb_handedness",
-    )
-
-with st.container(border=True):
-    st.html("""
-    <div class="section-banner">
-        <div class="section-banner-title"><span>🔴</span> STEP 2: CONFIGURE HAWK-EYE BOWLER DELIVERY</div>
-        <div class="section-banner-pill">3D PITCH TRACKER</div>
-    </div>
-    <div style="font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; color:#A7BBAE; margin-bottom:8px;">⚡ Quick Bowling Presets</div>
-    """)
-
-    p1, p2, p3 = st.columns(3)
-    with p1:
-        if st.button("🔴 Yorker Outside Off", key="p_yorker", use_container_width=True):
-            st.session_state["selected_length"], st.session_state["selected_line"] = "Full", "Outside Off"
-            st.rerun()
-        if st.button("🔴 Ribcage Bouncer", key="p_bouncer", use_container_width=True):
-            st.session_state["selected_length"], st.session_state["selected_line"] = "Short", "Stumps"
-            st.rerun()
-    with p2:
-        if st.button("🎯 4th Stump Channel", key="p_4th", use_container_width=True):
-            st.session_state["selected_length"], st.session_state["selected_line"] = "Good", "Outside Off"
-            st.rerun()
-        if st.button("🏏 Full on Pads", key="p_pads", use_container_width=True):
-            st.session_state["selected_length"], st.session_state["selected_line"] = "Full", "Leg Side"
-            st.rerun()
-    with p3:
-        if st.button("🪵 Good on Stumps", key="p_defense", use_container_width=True):
-            st.session_state["selected_length"], st.session_state["selected_line"] = "Good", "Stumps"
-            st.rerun()
-        if st.button("🔴 Short Outside Off", key="p_cut", use_container_width=True):
-            st.session_state["selected_length"], st.session_state["selected_line"] = "Short", "Outside Off"
-            st.rerun()
-
-    sel_col1, sel_col2 = st.columns(2)
-    with sel_col1:
+with delivery_column:
+    with st.container(border=True):
+        section("02 / Read the delivery", "LINE & LENGTH")
+        st.caption("Tell us where the ball pitched to review your shot selection.")
+        p1, p2 = st.columns(2)
+        presets = [
+            ("Full outside off", "Full", "Outside Off"),
+            ("Short at the body", "Short", "Stumps"),
+            ("Fourth-stump channel", "Good", "Outside Off"),
+            ("Full on the pads", "Full", "Leg Side"),
+        ]
+        for index, (label, length, line) in enumerate(presets):
+            with (p1 if index % 2 == 0 else p2):
+                st.button(label, key=f"delivery_{index}", on_click=set_delivery,
+                          args=(length, line), use_container_width=True)
         lengths_list = ["Full", "Good", "Short"]
-        curr_len_idx = lengths_list.index(st.session_state["selected_length"])
-        ball_length = st.selectbox("DELIVERY LENGTH", lengths_list, index=curr_len_idx, key="sb_len")
-        st.session_state["selected_length"] = ball_length
-    with sel_col2:
         lines_list = ["Outside Off", "Stumps", "Leg Side"]
-        curr_line_idx = lines_list.index(st.session_state["selected_line"])
-        ball_line = st.selectbox("DELIVERY LINE", lines_list, index=curr_line_idx, key="sb_line")
+        st.session_state.setdefault("sb_len", st.session_state["selected_length"])
+        st.session_state.setdefault("sb_line", st.session_state["selected_line"])
+        s1, s2 = st.columns(2)
+        with s1:
+            ball_length = st.selectbox("Length", lengths_list, key="sb_len")
+        with s2:
+            ball_line = st.selectbox("Line", lines_list, key="sb_line")
+        st.session_state["selected_length"] = ball_length
         st.session_state["selected_line"] = ball_line
+        render_hawkeye_canvas_simulator(ball_length, ball_line)
+        st.caption("Illustrated delivery · based on your settings, not tracked ball movement.")
 
-    render_hawkeye_canvas_simulator(ball_length, ball_line)
-
-if active_video_path and os.path.exists(active_video_path):
-    analyze_trigger = st.button("⚡ ANALYZE SHOT BIOMECHANICS & TECHNIQUE", type="primary", use_container_width=True)
-    if analyze_trigger:
-        with st.spinner("🏏 DRS BALL TRACKING: Isolating striker skeleton, tracing swing arc & calculating exit velocity..."):
+analysis_key = (active_video_path, ball_length, ball_line, handedness)
+ready = bool(active_video_path and os.path.isfile(active_video_path))
+analyze_trigger = st.button("Analyse my batting  →", type="primary", use_container_width=True, disabled=not ready)
+if analyze_trigger:
+    with st.status("Preparing your batting review…", expanded=True) as analysis_status:
+        st.write("Clip ready. Delivery and batting hand selected.")
+        try:
             result = analyze_video(active_video_path, ball_length, ball_line,
-                                   file_hint=st.session_state.get("active_file_name", ""),
-                                   handedness=handedness)
-            st.session_state["last_result"] = result
-            st.session_state["analyzed_video"] = active_video_path
+                                   file_hint=file_hint, handedness=handedness, on_progress=st.write)
+        except Exception:
+            result = {"error": "We couldn't analyse this clip. Try a shorter video with the full batter clearly visible."}
+        st.session_state["last_result"] = result
+        st.session_state["analysis_key"] = analysis_key
+        st.session_state["analyzed_video"] = active_video_path
+        if "error" in result:
+            analysis_status.update(label="This clip could not be analysed", state="error", expanded=True)
+        else:
+            st.write("Shot breakdown, movement estimates and drills are ready.")
+            analysis_status.update(label="Your batting review is ready", state="complete", expanded=False)
 
 has_active_result = (
     st.session_state.get("last_result") is not None
-    and st.session_state.get("analyzed_video") == active_video_path
+    and st.session_state.get("analysis_key") == analysis_key
 )
+if not has_active_result:
+    st.html('<div class="cv-empty"><strong>From a stroke to a starting point.</strong>Your shot breakdown, technique estimates and practice drill will appear here.</div>')
 
 if has_active_result:
     res = st.session_state["last_result"]
@@ -1533,44 +884,46 @@ if has_active_result:
         st.error(f"⚠️ {res['error']}")
     else:
         st.html("<div class='cricket-divider'></div>")
+        review_navigation(res.get("vis_frame") is not None)
+        review_anchor("shot-review")
 
         with st.container(border=True):
             st.html("""
             <div class="section-banner">
-                <div class="section-banner-title"><span>🏆</span> STEP 3: MATCH CENTER CLASSIFICATION & WAGON WHEEL</div>
-                <div class="section-banner-pill">DRS VERDICT</div>
+                <div class="section-banner-title"><span>🏆</span> 03 / Your shot breakdown</div>
+                <div class="section-banner-pill">SHOT REVIEW</div>
             </div>
             """)
 
             st.html(f"""
-            <div class="scoreboard-card">
-                <div style="font-family:'Orbitron',monospace; font-size:0.82rem; letter-spacing:2px; color:#FFD54F; text-transform:uppercase;">🏆 DETECTED STRIKE</div>
+            <div class="scoreboard-card cv-result-card">
+                <div style="font-family:'Arial',sans-serif; font-size:0.82rem; letter-spacing:2px; color:#FFD54F; text-transform:uppercase;">IDENTIFIED STROKE</div>
                 <div class="scoreboard-shot">{res["shot_played"]}</div>
-                <div style="font-size:0.95rem; color:#A7BBAE;">Core Biomechanical Family: <strong style="color:#FFD54F;">{res["shot_family"]}</strong></div>
+                <div style="font-size:0.95rem; color:#A7BBAE;">Shot family: <strong style="color:#FFD54F;">{res["shot_family"]}</strong></div>
             </div>
             """)
 
             render_cricket_wagon_wheel(res["shot_played"], res["best_core_key"], res.get("handedness", "Right-Handed (RHB)"))
-            st.html(render_snickometer())
+            st.caption("Illustrative scoring zone for this shot family; not a measured ball trajectory or distance.")
 
             g_col1, g_col2 = st.columns(2)
             with g_col1:
                 exec_color = "#10B981" if res["execution_accuracy"] >= 88 else ("#FFD54F" if res["execution_accuracy"] >= 78 else "#EF4444")
-                st.html(render_circular_gauge(res["execution_accuracy"], "Execution Score", exec_color, "Biomechanical Purity"))
+                st.html(render_circular_gauge(res["execution_accuracy"], "Execution Score", exec_color, "Technique estimate"))
             with g_col2:
                 conf_color = "#38BDF8" if res["confidence"] >= 80 else ("#FFD54F" if res["confidence"] >= 65 else "#EF4444")
-                st.html(render_circular_gauge(res["confidence"], "AI Confidence", conf_color, "Neural DRS Confidence"))
+                st.html(render_circular_gauge(res["confidence"], "AI Confidence", conf_color, "Shot classification confidence"))
 
             if res["is_correct_selection"]:
                 st.html(f"""
-                <div style="background:linear-gradient(135deg, rgba(16,185,129,0.18), rgba(16,185,129,0.04)); border:1px solid rgba(16,185,129,0.45); border-left:5px solid #10B981; border-radius:14px; padding:1.2rem 1.5rem; margin:1.2rem 0;">
+                <div class="cv-verdict" style="background:linear-gradient(135deg, rgba(16,185,129,0.18), rgba(16,185,129,0.04)); border:1px solid rgba(16,185,129,0.45); border-left:5px solid #10B981; border-radius:14px; padding:1.2rem 1.5rem; margin:1.2rem 0;">
                     <div style="font-weight:700; color:#10B981; font-size:1.05rem; margin-bottom:4px;">✅ Optimal Shot Selection</div>
                     <div style="color:#E5E7EB; font-size:0.88rem; line-height:1.5;"><strong>Delivery Faced:</strong> {res["delivery"]}<br>{res["verdict"]}</div>
                 </div>
                 """)
             else:
                 st.html(f"""
-                <div style="background:linear-gradient(135deg, rgba(245,158,11,0.18), rgba(245,158,11,0.04)); border:1px solid rgba(245,158,11,0.45); border-left:5px solid #F59E0B; border-radius:14px; padding:1.2rem 1.5rem; margin:1.2rem 0;">
+                <div class="cv-verdict" style="background:linear-gradient(135deg, rgba(245,158,11,0.18), rgba(245,158,11,0.04)); border:1px solid rgba(245,158,11,0.45); border-left:5px solid #F59E0B; border-radius:14px; padding:1.2rem 1.5rem; margin:1.2rem 0;">
                     <div style="font-weight:700; color:#F59E0B; font-size:1.05rem; margin-bottom:4px;">⚠️ Risky Shot Selection</div>
                     <div style="color:#E5E7EB; font-size:0.88rem; line-height:1.5;"><strong>Delivery Faced:</strong> {res["delivery"]}<br>{res["verdict"]}</div>
                 </div>
@@ -1590,8 +943,8 @@ if has_active_result:
                     <span style="font-size:1.2rem;">{medals[i]}</span>
                     <div style="flex:1;">
                         <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                            <span style="font-family:'Poppins',sans-serif; font-size:0.88rem; font-weight:600; color:#F3F4F6;">{pred["name"]}</span>
-                            <span style="font-family:'Orbitron',monospace; font-size:0.82rem; font-weight:700; color:#FFD54F;">{pred["pct"]:.1f}%</span>
+                            <span style="font-family:'Arial',sans-serif; font-size:0.88rem; font-weight:600; color:#F3F4F6;">{pred["name"]}</span>
+                            <span style="font-family:'Arial',sans-serif; font-size:0.82rem; font-weight:700; color:#FFD54F;">{pred["pct"]:.1f}%</span>
                         </div>
                         <div style="background:#091E12; border-radius:8px; height:9px; overflow:hidden;">
                             <div style="width:{pct}%; height:100%; background:{bar_gradients[i]}; border-radius:8px;"></div>
@@ -1600,60 +953,63 @@ if has_active_result:
                 </div>
                 """)
 
+        review_anchor("movement-review")
         with st.container(border=True):
             st.html("""
             <div class="section-banner">
-                <div class="section-banner-title"><span>⚡</span> STEP 4: SPEED GUN & BIOMECHANICAL TELEMETRY</div>
-                <div class="section-banner-pill">RADAR DYNAMICS</div>
+                <div class="section-banner-title"><span>⚡</span> 04 / Movement & balance</div>
+                <div class="section-banner-pill">POSE ESTIMATES</div>
             </div>
             """)
 
+            st.caption("Estimates from 2D pose tracking. Speed is uncalibrated; weight shift is a positional proxy, not a force measurement.")
             telem = res.get("telemetry", {})
             t1, t2 = st.columns(2)
             with t1:
                 st.html(f"""
-                <div style="background:#091E12; border:1px solid #1E5429; border-radius:14px; padding:1.2rem; margin-bottom:12px;">
+                <div class="cv-metric-card" style="background:#091E12; border:1px solid #1E5429; border-radius:14px; padding:1.2rem; margin-bottom:12px;">
                     <div style="font-size:0.75rem; text-transform:uppercase; color:#A7BBAE; margin-bottom:4px; display:flex; justify-content:space-between;">
-                        <span>⚡ Bat Swing Arc Speed</span><span style="color:#FFD54F;">EXPLOSIVE</span>
+                        <span>⚡ Bat Swing Arc Speed</span><span style="color:#FFD54F;">ESTIMATE</span>
                     </div>
-                    <div style="font-family:'Orbitron',monospace; font-size:1.4rem; font-weight:700; color:#F8FAFC; margin-bottom:6px;">
+                    <div style="font-family:'Arial',sans-serif; font-size:1.4rem; font-weight:700; color:#F8FAFC; margin-bottom:6px;">
                         {telem.get("bat_speed", 128.0):.1f} <span style="font-size:0.8rem; color:#A7BBAE;">km/h</span>
                     </div>
                 </div>
-                <div style="background:#091E12; border:1px solid #1E5429; border-radius:14px; padding:1.2rem; margin-bottom:12px;">
+                <div class="cv-metric-card" style="background:#091E12; border:1px solid #1E5429; border-radius:14px; padding:1.2rem; margin-bottom:12px;">
                     <div style="font-size:0.75rem; text-transform:uppercase; color:#A7BBAE; margin-bottom:4px; display:flex; justify-content:space-between;">
-                        <span>📐 Front Elbow Elevation</span><span style="color:#10B981;">HIGH ELBOW</span>
+                        <span>📐 Front Elbow Elevation</span><span style="color:#10B981;">2D ANGLE</span>
                     </div>
-                    <div style="font-family:'Orbitron',monospace; font-size:1.4rem; font-weight:700; color:#F8FAFC; margin-bottom:6px;">
+                    <div style="font-family:'Arial',sans-serif; font-size:1.4rem; font-weight:700; color:#F8FAFC; margin-bottom:6px;">
                         {telem.get("elbow_angle", 152.0):.1f}°
                     </div>
                 </div>
                 """)
             with t2:
                 st.html(f"""
-                <div style="background:#091E12; border:1px solid #1E5429; border-radius:14px; padding:1.2rem; margin-bottom:12px;">
+                <div class="cv-metric-card" style="background:#091E12; border:1px solid #1E5429; border-radius:14px; padding:1.2rem; margin-bottom:12px;">
                     <div style="font-size:0.75rem; text-transform:uppercase; color:#A7BBAE; margin-bottom:4px; display:flex; justify-content:space-between;">
-                        <span>🎯 Head Position Stillness</span><span style="color:#06B6D4;">LOCKED</span>
+                        <span>🎯 Head Position Stillness</span><span style="color:#06B6D4;">2D ESTIMATE</span>
                     </div>
-                    <div style="font-family:'Orbitron',monospace; font-size:1.4rem; font-weight:700; color:#F8FAFC; margin-bottom:6px;">
+                    <div style="font-family:'Arial',sans-serif; font-size:1.4rem; font-weight:700; color:#F8FAFC; margin-bottom:6px;">
                         {telem.get("head_stability", 92.0):.1f}%
                     </div>
                 </div>
-                <div style="background:#091E12; border:1px solid #1E5429; border-radius:14px; padding:1.2rem; margin-bottom:12px;">
+                <div class="cv-metric-card" style="background:#091E12; border:1px solid #1E5429; border-radius:14px; padding:1.2rem; margin-bottom:12px;">
                     <div style="font-size:0.75rem; text-transform:uppercase; color:#A7BBAE; margin-bottom:4px; display:flex; justify-content:space-between;">
-                        <span>⚖️ Weight Shift Dynamics</span><span style="color:#8B5CF6;">TRANSFERRED</span>
+                        <span>⚖️ Weight Shift Dynamics</span><span style="color:#8B5CF6;">POSE PROXY</span>
                     </div>
-                    <div style="font-family:'Orbitron',monospace; font-size:1.4rem; font-weight:700; color:#F8FAFC; margin-bottom:6px;">
+                    <div style="font-family:'Arial',sans-serif; font-size:1.4rem; font-weight:700; color:#F8FAFC; margin-bottom:6px;">
                         {telem.get("weight_front", 82.0):.1f}% <span style="font-size:0.75rem; color:#A7BBAE;">Front Foot</span>
                     </div>
                 </div>
                 """)
 
+        review_anchor("practice-drills")
         with st.container(border=True):
             st.html("""
             <div class="section-banner">
-                <div class="section-banner-title"><span>🏆</span> STEP 5: PRO COACHING BREAKDOWN & DRILLS</div>
-                <div class="section-banner-pill">MASTERCLASS</div>
+                <div class="section-banner-title"><span>🏆</span> 05 / Take it to the nets</div>
+                <div class="section-banner-pill">PRACTICE NOTES</div>
             </div>
             """)
 
@@ -1662,8 +1018,8 @@ if has_active_result:
             cp_list = "".join([f"<li style='margin-bottom:6px;'>{c}</li>" for c in guide["checkpoints"]])
 
             st.html(f"""
-            <div style="background:linear-gradient(145deg, #0D2619 0%, #081B11 100%); border:1px solid rgba(255, 213, 79, 0.4); border-radius:18px; padding:1.6rem;">
-                <div style="font-family:'Orbitron',monospace; font-size:1.2rem; font-weight:700; color:#FFD54F; margin-bottom:4px;">{guide["legend"]}</div>
+            <div class="cv-coach-card" style="background:linear-gradient(145deg, #0D2619 0%, #081B11 100%); border:1px solid rgba(255, 213, 79, 0.4); border-radius:18px; padding:1.6rem;">
+                <div style="font-family:'Arial',sans-serif; font-size:1.2rem; font-weight:700; color:#FFD54F; margin-bottom:4px;">{guide["legend"]}</div>
                 <div style="font-size:0.85rem; color:#A7BBAE; margin-bottom:12px;">{guide["legend_title"]} · {guide["swing_type"]}</div>
                 <ul style="font-size:0.85rem; color:#A7BBAE; padding-left:20px; line-height:1.6; margin-bottom:14px;">{cp_list}</ul>
                 <div style="background:rgba(255,213,79,0.1); border-left:4px solid #FFD54F; padding:10px 14px; border-radius:6px; font-size:0.82rem; color:#E5E7EB;">
@@ -1673,11 +1029,37 @@ if has_active_result:
             """)
 
         if res.get("vis_frame") is not None:
-            with st.container(border=True):
+            review_anchor("pose-frame")
+            with st.container(border=True, key="pose_review"):
                 st.html("""
                 <div class="section-banner">
-                    <div class="section-banner-title"><span>🔬</span> STEP 6: YOLO11-POSE STRIKER IMPACT FRAME</div>
-                    <div class="section-banner-pill">KEYPOINT LOCK</div>
+                    <div class="section-banner-title"><span>🔬</span> 06 / A closer look at your stroke</div>
+                    <div class="section-banner-pill">POSE VIEW</div>
                 </div>
                 """)
-                st.image(res["vis_frame"], caption="Striker Skeleton Lock & Farneback Optical Impact Frame", use_container_width=True)
+                st.image(res["vis_frame"], caption="Tracked batter pose · review alongside your original footage", width=520)
+
+        review_anchor("slow-replay")
+        with st.container(border=True):
+            section("07 / Slow-motion pose replay", "WATCH THE DETAILS")
+            st.caption("Review the short sampled window around the estimated shot moment, located within the first 20 seconds of the clip. Playback can be slowed to ¼×; it does not create extra frames. Audio is omitted.")
+            if st.button("Prepare pose replay", key="prepare_pose_replay"):
+                with st.status("Preparing your pose replay…", expanded=True) as replay_status:
+                    try:
+                        payload = prepare_replay(active_video_path, handedness, on_progress=st.write)
+                        st.session_state["pose_replay"] = {"key": analysis_key, "payload": payload}
+                        replay_status.update(label="Replay ready — use the controls below", state="complete", expanded=False)
+                    except ValueError as exc:
+                        replay_status.update(label="Replay needs a clearer clip", state="error")
+                        st.warning(str(exc))
+                    except Exception:
+                        replay_status.update(label="Replay could not be prepared", state="error")
+                        st.warning("Replay could not be prepared. Try a clearer, shorter clip; your analysis is still available.")
+            saved_replay = st.session_state.get("pose_replay")
+            if saved_replay and saved_replay["key"] == analysis_key:
+                components.html(replay_html(saved_replay["payload"]), height=430)
+                st.caption("Pose points follow the sampled frames. Hidden or low-confidence joints are omitted. ‘Shot moment’ is a motion-based estimate, not confirmed bat–ball contact.")
+
+
+
+render_field_notes()
